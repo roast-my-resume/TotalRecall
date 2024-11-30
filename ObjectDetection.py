@@ -2,8 +2,6 @@ dirs = "frames/"
 # Load Florence-2
 from transformers import AutoModelForCausalLM, AutoProcessor
 from PIL import Image
-import requests
-import copy
 import torch
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -11,7 +9,7 @@ import matplotlib.patches as patches
 model_id = 'microsoft/Florence-2-large'
 model = AutoModelForCausalLM.from_pretrained(model_id, trust_remote_code=True, torch_dtype='auto').eval().cuda()
 processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True)
-image = Image.open(dirs + '00000000.jpg')
+
 
 
 def run(task_prompt, text_input=None):
@@ -61,19 +59,18 @@ def plot_bbox(image, data):
     # Show the plot
     plt.show()
 
-def caption_grounding():
-    task_prompt = '<CAPTION>'
-    # task_prompt = '<DETAILED_CAPTION>'
+def caption_grounding(image):
+    task_prompt = '<CAPTION>' # base
+    # task_prompt = '<DETAILED_CAPTION>' # more specific
+    # task_prompt = '<MORE_DETAILED_CAPTION>' # most specific
     results = run(task_prompt)
     text_input = results[task_prompt]
     task_prompt = '<CAPTION_TO_PHRASE_GROUNDING>'
     results = run(task_prompt, text_input)
     results['<DETAILED_CAPTION>'] = text_input
-    # plot_bbox(image, results['<CAPTION_TO_PHRASE_GROUNDING>'])
+    plot_bbox(image, results['<CAPTION_TO_PHRASE_GROUNDING>'])
 
 if __name__ == '__main__':
-    # task_prompt = '<CAPTION>'
-    # task_prompt = '<DETAILED_CAPTION>' # more specific
-    # task_prompt = '<MORE_DETAILED_CAPTION>' # most specific
+    image = Image.open(dirs + '00000001.jpg')
     # results = run(task_prompt)
-    caption_grounding()
+    caption_grounding(image = image)
