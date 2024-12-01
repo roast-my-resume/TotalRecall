@@ -1,25 +1,25 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
 import os
-import time
-
-from torch import inference_mode
-
-from ObjectDetection import processor
+from flask_cors import CORS
+from flask import Flask, request, jsonify
+from ObjectDetection import load_detection_model, caption_grounding
 from VideoInference import process_video, load_model
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 CORS(app)
-
+inference_model, inference_processor = load_model()
+detection_model, detection_processor = load_detection_model()
 # pass temp video clip to inference model
 def video_to_text(video_path: str):
-    inference_model, inference_processor = load_model()
     results = process_video(video_path,inference_model,inference_processor)
+    results["objects"] = caption_grounding(video_path = video_path, model = detection_model, processor = detection_processor, captions = results["description"])
+    print(results)
     return {
+        "emoji": results["emoji"],
         "type": results["type"],
         "title": results["title"],
-        "description": results["description"]
+        "description": results["description"],
+        "objects": results["objects"]
     }
 
 @app.route('/video-to-text', methods=['POST'])

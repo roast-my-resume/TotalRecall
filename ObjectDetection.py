@@ -1,18 +1,18 @@
-dirs = "frames/"
+import torch
 # Load Florence-2
 from transformers import AutoModelForCausalLM, AutoProcessor
-from PIL import Image
-import torch
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 
-model_id = 'microsoft/Florence-2-large'
-model = AutoModelForCausalLM.from_pretrained(model_id, trust_remote_code=True, torch_dtype='auto').eval().cuda()
-processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True)
+from utils import plot_bbox, get_random_frame
 
+# Load Model
+def load_detection_model():
+    model_id = 'microsoft/Florence-2-large'
+    model = AutoModelForCausalLM.from_pretrained(model_id, trust_remote_code=True, torch_dtype='auto').eval().cuda()
+    processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True)
+    return model,processor
 
-
-def run(task_prompt, text_input=None):
+# Execute using given prompts
+def run(task_prompt, text_input=None, image = None, model = None, processor = None):
     if text_input is None:
         prompt = task_prompt
     else:
@@ -35,42 +35,11 @@ def run(task_prompt, text_input=None):
 
     return parsed_answer
 
-def plot_bbox(image, data):
-    # Create a figure and axes
-    fig, ax = plt.subplots()
-
-    # Display the image
-    ax.imshow(image)
-
-    # Plot each bounding box
-    for bbox, label in zip(data['bboxes'], data['labels']):
-        # Unpack the bounding box coordinates
-        x1, y1, x2, y2 = bbox
-        # Create a Rectangle patch
-        rect = patches.Rectangle((x1, y1), x2 - x1, y2 - y1, linewidth=1, edgecolor='r', facecolor='none')
-        # Add the rectangle to the Axes
-        ax.add_patch(rect)
-        # Annotate the label
-        plt.text(x1, y1, label, color='white', fontsize=8, bbox=dict(facecolor='red', alpha=0.5))
-
-        # Remove the axis ticks and labels
-    ax.axis('off')
-
-    # Show the plot
-    plt.show()
-
-def caption_grounding(image):
-    task_prompt = '<CAPTION>' # base
-    # task_prompt = '<DETAILED_CAPTION>' # more specific
-    # task_prompt = '<MORE_DETAILED_CAPTION>' # most specific
-    results = run(task_prompt)
-    text_input = results[task_prompt]
+def caption_grounding(video_path, model, processor, captions = None):
+    image = get_random_frame(video_path)
+    text_input = captions
     task_prompt = '<CAPTION_TO_PHRASE_GROUNDING>'
-    results = run(task_prompt, text_input)
+    results = run(task_prompt=task_prompt, text_input=text_input, image= image, model= model, processor= processor)
     results['<DETAILED_CAPTION>'] = text_input
     plot_bbox(image, results['<CAPTION_TO_PHRASE_GROUNDING>'])
-
-if __name__ == '__main__':
-    image = Image.open(dirs + '00000001.jpg')
-    # results = run(task_prompt)
-    caption_grounding(image = image)
+    return results['<CAPTION_TO_PHRASE_GROUNDING>']['labels']
