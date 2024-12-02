@@ -2,7 +2,8 @@ import re
 import av
 import torch
 import numpy as np
-from transformers import LlavaNextVideoForConditionalGeneration,LlavaNextVideoProcessor
+
+from transformers import LlavaNextVideoForConditionalGeneration, LlavaNextVideoProcessor, BitsAndBytesConfig
 from utils import conversation1, conversation2, validate_video_path, generate_emoji
 
 
@@ -52,12 +53,19 @@ def load_model():
     """
     Load the model once and reuse it.
     """
+    # specify how to quantize the model
+    quantization_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_compute_dtype=torch.float16,
+    )
     model = LlavaNextVideoForConditionalGeneration.from_pretrained(
         "llava-hf/LLaVA-NeXT-Video-7B-hf",
         torch_dtype=torch.float16,
-        low_cpu_mem_usage=True,
+        low_cpu_mem_usage = True,
         attn_implementation="flash_attention_2",
-        device_map="auto"
+        quantization_config=quantization_config,
+        device_map='auto'
     )
     processor = LlavaNextVideoProcessor.from_pretrained("llava-hf/LLaVA-NeXT-Video-7B-hf")
     return model, processor
@@ -79,7 +87,7 @@ def process_video(video_path: str, model, processor):
     container = av.open(video_path)
     total_frames = container.streams.video[0].frames
     # Load the video as an np.array, sampling uniformly 8 frames (can sample more for longer videos)
-    indices = np.arange(0, total_frames, total_frames / 8).astype(int)
+    indices = np.arange(0, total_frames, total_frames / 4).astype(int)
     video = read_video_pyav(container, indices)
 
     prompt1 = processor.apply_chat_template(conversation1, add_generation_prompt=False)
@@ -88,16 +96,18 @@ def process_video(video_path: str, model, processor):
     # process
     inputs1 = processor(text=prompt2, videos=video, return_tensors="pt", padding=True)
     inputs1.to(model.device)
+    output1 = model.generate(**inputs1, max_new_tokens=50)
+
     inputs2 = processor(text=prompt1, videos=video, return_tensors="pt", padding=True)
     inputs2.to(model.device)
+    output2 = model.generate(**inputs2, max_new_tokens=25)
 
-    output1 = model.generate(**inputs1, max_new_tokens=100)
-    output2 = model.generate(**inputs2, max_new_tokens=150)
     res1 = '\n'.join(processor.decode(output1[0][2:], skip_special_tokens=True).split("\n")[-2:])
     res2 = processor.decode(output2[0][2:], skip_special_tokens=True).split("\n")[-1]
     concat_res = '\n'.join([res1, res2])
     # print(concat_res)
     results = parse_output(concat_res)
     torch.cuda.empty_cache()
+    torch.cuda.synchronize()
     # print(results)
     return results

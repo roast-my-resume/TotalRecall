@@ -1,11 +1,14 @@
 import os
+
 from flask_cors import CORS
 from flask import Flask, request, jsonify
 from ObjectDetection import load_detection_model, caption_grounding
 from VideoInference import process_video, load_model
 from werkzeug.utils import secure_filename
 
+import threading
 app = Flask(__name__)
+lock = threading.Lock()
 CORS(app)
 inference_model, inference_processor = load_model()
 detection_model, detection_processor = load_detection_model()
@@ -28,21 +31,21 @@ def analyze_video():
     video_file = request.files['video']
     video_path = os.path.join(temp_dir, secure_filename(video_file.filename))
     video_file.save(video_path)
-    
+
     # Generate response 
-    response = video_to_text(video_path)
+    with lock:
+        response = video_to_text(video_path)
 
     # Delete temporary file
     # os.remove(video_path)     # fixme: uncomment this line to delete the file after processing
-    
+
     # Return response as JSON
     return jsonify(response)
-    
 
 if __name__ == '__main__':
     temp_dir = "./temp"
     if not os.path.exists(temp_dir):
         os.makedirs(temp_dir)
 
-    app.run(host='localhost', port=10708, debug=True)
-
+    # app.run(host='localhost', port=10708, debug=True)
+    app.run(host='localhost',port=10708, debug=False)

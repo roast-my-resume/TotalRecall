@@ -1,13 +1,28 @@
 import os
-import random
+import spacy
 import av
 import cv2
+import random
 from PIL import Image
 from openai import OpenAI
 from dotenv import load_dotenv
 from matplotlib import pyplot as plt, patches as patches
 
+def extract_noun(labels):
+    """
+    Extract nouns based on given labels using spacy
+    """
+    nlp = spacy.load("en_core_web_sm")
+    single_noun_labels = []
+    for label in labels:
+        doc = nlp(label)
+        nouns = [token for token in doc if token.pos_ == "NOUN"]
+        if nouns:
+            core_noun = min(nouns, key=lambda token: token == token.head)
+            single_noun_labels.append(core_noun.text)
 
+    # print(single_noun_labels)
+    return single_noun_labels
 
 def generate_emoji(prompt):
     """
@@ -39,6 +54,7 @@ def generate_emoji(prompt):
                 {"role": "user", "content": gpt_prompt},
             ],
             max_tokens=10,
+            temperature=0.2,
         )
         # extract emoji
         emoji = response.choices[0].message.content[0]
@@ -165,7 +181,9 @@ def get_random_frame(video_path):
     # read random frame
     success, frame = cap.read()
     if not success:
-        raise ValueError(f"Unable to read frame: {random_frame_number}")
+        print(f"Unable to read frame: {random_frame_number}")
+        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+        success, frame = cap.read()
 
     cap.release()
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)

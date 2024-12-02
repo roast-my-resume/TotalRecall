@@ -1,8 +1,7 @@
 import torch
 # Load Florence-2
 from transformers import AutoModelForCausalLM, AutoProcessor
-
-from utils import plot_bbox, get_random_frame
+from utils import plot_bbox, get_random_frame, extract_noun
 
 # Load Model
 def load_detection_model():
@@ -39,7 +38,9 @@ def caption_grounding(video_path, model, processor, captions = None):
     image = get_random_frame(video_path)
     text_input = captions
     task_prompt = '<CAPTION_TO_PHRASE_GROUNDING>'
-    results = run(task_prompt=task_prompt, text_input=text_input, image= image, model= model, processor= processor)
-    results['<DETAILED_CAPTION>'] = text_input
+    results = run(task_prompt=task_prompt, text_input= text_input, image= image, model= model, processor= processor)
+    # results['<DETAILED_CAPTION>'] = text_input
+    objects = extract_noun(results['<CAPTION_TO_PHRASE_GROUNDING>']['labels'])
+    results['<CAPTION_TO_PHRASE_GROUNDING>']['labels'] = objects
     plot_bbox(image, results['<CAPTION_TO_PHRASE_GROUNDING>'])
-    return results['<CAPTION_TO_PHRASE_GROUNDING>']['labels']
+    return list(set(objects))
