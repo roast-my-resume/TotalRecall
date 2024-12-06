@@ -48,13 +48,14 @@ def generate_emoji(prompt):
     try:
         # use GPT-4 API
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4o",
             messages=[
-                {"role": "system", "content": "You are an assistant trained to generate emojis for short text."},
+                {"role": "system", "content": "You are an assistant trained to generate emojis for short text."
+                                              "Focus on the objects and events described in the text."},
                 {"role": "user", "content": gpt_prompt},
             ],
             max_tokens=10,
-            temperature=0.2,
+            temperature=0,
         )
         # extract emoji
         emoji = response.choices[0].message.content[0]

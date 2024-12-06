@@ -33,8 +33,8 @@ def analyze_video():
     video_file.save(video_path)
 
     # Generate response 
-    with lock:
-        response = video_to_text(video_path)
+    # with lock:
+    response = video_to_text(video_path)
 
     # Delete temporary file
     # os.remove(video_path)     # fixme: uncomment this line to delete the file after processing
